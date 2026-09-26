@@ -104,9 +104,10 @@ module palette_pair(c_count, c_size) {
             }
 
             // Engraved label (plate size + half-pan count) on the y=0 end wall
+            // Lower local $fn: text glyph curves don't need the model's global facet count
             translate([1, -0.05, 1])
                 rotate([-90, 0, 0])
-                    linear_extrude(height = engrave_depth + 0.05)
+                    linear_extrude(height = engrave_depth + 0.05, $fn = 8)
                         mirror([0, 1, 0])
                             text(str(frame_w, "x", frame_l, "mm ", pan_count, " pans"), size = engrave_size, halign = "left", valign = "bottom");
         }
@@ -149,10 +150,10 @@ module palette_pair(c_count, c_size) {
             difference() {
                 // Main Solid Lid Frame
                 cube([frame_w, frame_l, lid_h]);
-
+                c_safe_size = c_size + 0.2;
                 // ceramic recess
-                translate([(frame_w - c_size)/2, ((frame_l - (c_size * c_count))/2), -0.1]) {
-                    cube([c_size, c_size * c_count, recess_depth + 0.1]);
+                translate([(frame_w - c_safe_size)/2, ((frame_l - (c_safe_size * c_count))/2), -0.1]) {
+                    cube([c_safe_size, c_safe_size * c_count, recess_depth + 0.1]);
 
                     opening_size = [c_size - (2*recess_width), c_size - (2*recess_width), lid_h + 0.2];
 
