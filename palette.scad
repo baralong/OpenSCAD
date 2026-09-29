@@ -83,8 +83,9 @@ module palette_pair(c_count, c_size) {
 
 
             // 0.5mm x 1.0mm Steel Plate Recess
+            plate_dim = [frame_w - 2*(wall_thick - recess_width), frame_l - 2*(wall_thick - recess_width), recess_depth + 0.1];
             translate([wall_thick - recess_width, wall_thick - recess_width, -0.1])
-                cube([frame_w - 2*(wall_thick - recess_width), frame_l - 2*(wall_thick - recess_width), recess_depth + 0.1]);
+                cube(plate_dim);
 
              // Central Cavity
             translate([wall_thick, wall_thick, recess_depth])
@@ -109,7 +110,7 @@ module palette_pair(c_count, c_size) {
                 rotate([-90, 0, 0])
                     linear_extrude(height = engrave_depth + 0.05, $fn = 8)
                         mirror([0, 1, 0])
-                            text(str(frame_w, "x", frame_l, "mm ", pan_count, " pans"), size = engrave_size, halign = "left", valign = "bottom");
+                            text(str(plate_dim[0], "x", plate_dim[1], "mm ", pan_count, " pans"), size = engrave_size, halign = "left", valign = "bottom");
         }
 
         pan_cube = [pans_extent.x - 0.2, pans_extent.y - 0.2, base_h - 0.1];
@@ -150,18 +151,19 @@ module palette_pair(c_count, c_size) {
             difference() {
                 // Main Solid Lid Frame
                 cube([frame_w, frame_l, lid_h]);
-                c_safe_size = c_size + 0.2;
+                c_safe_size = c_size + 0.1;
                 // ceramic recess
                 translate([(frame_w - c_safe_size)/2, ((frame_l - (c_safe_size * c_count))/2), -0.1]) {
                     cube([c_safe_size, c_safe_size * c_count, recess_depth + 0.1]);
 
-                    opening_size = [c_size - (2*recess_width), c_size - (2*recess_width), lid_h + 0.2];
 
+                    opening_size = [c_size - (2*recess_width), c_size - (2*recess_width), lid_h + 0.2];
                     // Ceramic Openings 2
+                    opening_offset = (c_safe_size - opening_size[0])/2;
                     for (i = [0 : c_count - 1]) {
-                        c_offset_y = recess_width + (i * (c_size - recess_width));
+                        c_offset_y = opening_offset + (i * c_safe_size);
                         
-                        translate([recess_width, c_offset_y, 0])
+                        translate([opening_offset, c_offset_y, 0])
                             cube(opening_size);
                     }
                 }
