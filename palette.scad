@@ -68,7 +68,6 @@ module palette_pair(c_count, c_size) {
     pan_l_per_c = pan_l / c_size;
     pans_extent_base = get_best_pan_extent(c_size, c_count);
     pan_count = get_pan_count(pans_extent_base);
-    echo(str("c_size=", c_size, " c_count=", c_count, " total_pans=", pan_count));
     pans_extent = pans_extent_base + [0.1, 0.1];
     frame_w     = max(c_size + (2 * recess_width), pans_extent.x + (2 * wall_thick));
     frame_l     = max(c_size * c_count + (2 * recess_width), pans_extent.y + (2 * wall_thick));
@@ -86,6 +85,7 @@ module palette_pair(c_count, c_size) {
             plate_dim = [frame_w - 2*(wall_thick - recess_width), frame_l - 2*(wall_thick - recess_width), recess_depth + 0.1];
             translate([wall_thick - recess_width, wall_thick - recess_width, -0.1])
                 cube(plate_dim);
+            echo(str("plate=", plate_dim, " c_size=", c_size, " c_count=", c_count, " total_pans=", pan_count));
 
              // Central Cavity
             translate([wall_thick, wall_thick, recess_depth])
