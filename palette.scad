@@ -9,8 +9,7 @@ $fn = 64;
 wall_thick   = 2.0;    // Solid perimeter wall thickness
 
 // Print Bed Layout Spacing
-print_gap    = 10.0;   // Distance between matching Base and Lid
-pair_gap     = 130.0;  // Distance between distinct unit pairs
+print_spacing = 100.0;  // The space for each piece
 
 // Plate Mounting Recess (0.5mm deep x 1.0mm wide step)
 recess_depth = 0.5;    
@@ -28,11 +27,29 @@ lid_h        = 1.5;    // Lid frame height
 hinge_r      = 2.0;    // Outer radius of the arch
 hinge_offset = 4;    // Distance from wall face to pivot center (clears wall intersection)
 pivot_z      = 6.0;    // Center of pivot axis (midpoint of 12mm total)
+magnet_hole_dia = 3.0;
+magnet_hole_web = 0.5;
+magnet_hole_bottom = pivot_z - (hinge_r - 1.0 + magnet_hole_dia + magnet_hole_web);
+magnet_hole_z = magnet_hole_bottom + magnet_hole_dia / 2;
+
+// Raised lid perimeter wall
+lid_wall_thickness = 1.0;
+lid_wall_height = 2.5;
 
 // Base Frame Label Engraving
 engrave_depth = 0.1;  // Depth cut into the end wall
 engrave_size  = 1;    // Font size of the engraved label
 
+module lid_perimeter_wall(frame_w, frame_l) {
+    difference() {
+        translate([-lid_wall_thickness, -lid_wall_thickness, lid_h - 0.02])
+            cube([frame_w + 2 * lid_wall_thickness,
+                  frame_l + 2 * lid_wall_thickness,
+                  lid_wall_height + 0.02]);
+        translate([0.01, 0.01, lid_h - 0.03])
+            cube([frame_w - 0.02, frame_l - 0.02, lid_wall_height + 0.04]);
+    }
+}
 
 // Helper: 1D pan count for length L and pan dimension P (< 0.25*P overhang per side)
 function max_pans_1d(L, P) = floor((L + 0.5 * P - 0.001) / P);
@@ -73,80 +90,88 @@ module palette_pair(c_count, c_size) {
     frame_l     = max(c_size * c_count + (2 * recess_width), pans_extent.y + (2 * wall_thick));
 
     // -----------------------------------------------------------------
-    // BASE FRAME (10.5 mm)
+    // BASE FRAME
     // -----------------------------------------------------------------
-    union() {
-        difference() {
-            // Main Outer Frame
-            cube([frame_w, frame_l, base_h]);
+    translate([(print_spacing - frame_w)/2, 0, 0]) {
+        union() {
+            difference() {
+                // Main Outer Frame
+                cube([frame_w, frame_l, base_h]);
 
 
-            // 0.5mm x 1.0mm Steel Plate Recess
-            plate_dim = [frame_w - 2*(wall_thick - recess_width), frame_l - 2*(wall_thick - recess_width), recess_depth + 0.1];
-            translate([wall_thick - recess_width, wall_thick - recess_width, -0.1])
-                cube(plate_dim);
-            echo(str("plate=", plate_dim, " c_size=", c_size, " c_count=", c_count, " total_pans=", pan_count));
+                // 0.5mm x 1.0mm Steel Plate Recess
+                plate_dim = [frame_w - 2*(wall_thick - recess_width), frame_l - 2*(wall_thick - recess_width), recess_depth + 0.1];
+                translate([wall_thick - recess_width, wall_thick - recess_width, -0.1])
+                    cube(plate_dim);
+                echo(str("plate=", plate_dim, " c_size=", c_size, " c_count=", c_count, " total_pans=", pan_count));
 
-             // Central Cavity
-            translate([wall_thick, wall_thick, recess_depth])
-                cube([frame_w - (2 * wall_thick), frame_l - (2 * wall_thick), base_h]);
+                // Central Cavity
+                translate([wall_thick, wall_thick, recess_depth -1])
+                    cube([frame_w - (2 * wall_thick), frame_l - (2 * wall_thick), base_h +2]);
 
-            // --- 1.5mm Continuous Outer Edge Fillet ---
-            translate([frame_w - 1.5, -0.1, base_h - 1.5]) {
-                difference() {
-                    // 1.5mm x 1.5mm corner block running the full length (+ 0.2 buffer)
-                    cube([1.6, frame_l + 0.2, 1.6]);
-                    
-                    // Subtract a 1.5mm cylinder to leave the convex rounded edge
-                    translate([0, -0.1, 0])
-                        rotate([-90, 0, 0])
-                            cylinder(r = 1.5, h = frame_l + 0.4);
+                // metal recess
+                translate([frame_w - recess_depth, frame_l/2 - magnet_hole_dia/2, -0.1])
+                    cube([recess_width+0.2, magnet_hole_dia, base_h + 0.2]);
+
+                // --- 1.5mm Continuous Outer Edge Fillet ---
+                translate([frame_w - 1.5, -0.1, base_h - 1.5]) {
+                    difference() {
+                        // 1.5mm x 1.5mm corner block running the full length (+ 0.2 buffer)
+                        cube([1.6, frame_l + 0.2, 1.6]);
+                        
+                        // Subtract a 1.5mm cylinder to leave the convex rounded edge
+                        translate([0, -0.1, 0])
+                            rotate([-90, 0, 0])
+                                cylinder(r = 1.5, h = frame_l + 0.4);
+                    }
                 }
+
+                // Engraved label (plate size + half-pan count) on the y=0 end wall
+                // Lower local $fn: text glyph curves don't need the model's global facet count
+                translate([1, -0.05, 1])
+                    rotate([-90, 0, 0])
+                        linear_extrude(height = engrave_depth + 0.05, $fn = 8)
+                            mirror([0, 1, 0])
+                                text(str(plate_dim[0], "x", plate_dim[1], "mm ", pan_count, " pans"), size = engrave_size, halign = "left", valign = "bottom");
             }
 
-            // Engraved label (plate size + half-pan count) on the y=0 end wall
-            // Lower local $fn: text glyph curves don't need the model's global facet count
-            translate([1, -0.05, 1])
-                rotate([-90, 0, 0])
-                    linear_extrude(height = engrave_depth + 0.05, $fn = 8)
-                        mirror([0, 1, 0])
-                            text(str(plate_dim[0], "x", plate_dim[1], "mm ", pan_count, " pans"), size = engrave_size, halign = "left", valign = "bottom");
-        }
+            pan_cube = [pans_extent.x - 0.2, pans_extent.y - 0.2, base_h - 0.1];
+            // // show where the pans fit
+            // %translate([(frame_w - pan_cube.x)/2, (frame_l - pan_cube.y)/2, 0])
+            //     cube(pan_cube);
 
-        pan_cube = [pans_extent.x - 0.2, pans_extent.y - 0.2, base_h - 0.1];
-        // show where the pans fit
-        %translate([(frame_w - pan_cube.x)/2, (frame_l - pan_cube.y)/2, 0])
-            cube(pan_cube);
+            // Base Arched Hinge Knuckles (Pushed outward via hinge_offset)
+            for (y_pos = [frame_l * 0.1, frame_l * 0.7]) {
+                translate([frame_w-0.1, y_pos, 0]) {
+                    difference() {
+                        union() {
+                            cube([hinge_offset+0.1, frame_l * 0.2, pivot_z]);
+                            translate([0, 0, pivot_z])
+                            cube([hinge_r+0.1, frame_l * 0.2, hinge_r]);
+                            translate([hinge_offset - hinge_r+0.1, 0, pivot_z])
+                                rotate([-90, 90, 0])
+                                        cylinder(r = hinge_r, h = frame_l * 0.2);
+                            
+                        }
+                        // Inner arch cutout
+                        translate([hinge_offset - hinge_r +0.1, -0.1, pivot_z])
+                            rotate([-90, 0, 0])
+                                cylinder(r = hinge_r - 1.0, h = (frame_l * 0.2) + 0.2);
+                        translate([hinge_offset - lid_wall_thickness, -1,-1])
+                            cube([lid_wall_thickness+2, frame_l * 0.2+2.2, lid_wall_height+1.1]);
 
-        // Base Arched Hinge Knuckles (Pushed outward via hinge_offset)
-        for (y_pos = [frame_l * 0.1, frame_l * 0.7]) {
-            translate([frame_w, y_pos, 0]) {
-                difference() {
-                    union() {
-                        cube([hinge_offset, frame_l * 0.2, pivot_z]);
-                        translate([0, 0, pivot_z])
-                        cube([hinge_r, frame_l * 0.2, hinge_r]);
-                        translate([hinge_offset - hinge_r, 0, pivot_z])
-                            rotate([-90, 90, 0])
-                                    cylinder(r = hinge_r, h = frame_l * 0.2);
                         
                     }
-                    // Inner arch cutout
-                    translate([hinge_offset - hinge_r, -0.1, pivot_z])
-                        rotate([-90, 0, 0])
-                            cylinder(r = hinge_r - 1.0, h = (frame_l * 0.2) + 0.2);
-                    
-                   
                 }
             }
         }
-     }
+    }
 
     // -----------------------------------------------------------------
     // LID FRAME (1.5 mm)
     // -----------------------------------------------------------------
      
-   translate([pair_gap/2, 0, 0]) {
+   translate([print_spacing + (print_spacing - frame_w)/2, 0, 0]) {
         union() {
             difference() {
                 // Main Solid Lid Frame
@@ -168,32 +193,52 @@ module palette_pair(c_count, c_size) {
                     }
                 }
             }
+            difference() {
+                // Lid wall
+                translate([-lid_wall_thickness, -lid_wall_thickness,0])
+                    cube([frame_w + 2 * lid_wall_thickness,
+                          frame_l + 2 * lid_wall_thickness,
+                          lid_wall_height]);
+                translate([0, 0, -1])
+                    cube([frame_w, frame_l, lid_wall_height + 2]);
+               
+                translate([lid_wall_thickness+frame_w-1, frame_l * 0.3 + 0.2,-0.2])
+                    cube([lid_wall_thickness+2, frame_l * 0.4 - 0.4, lid_wall_height + 0.4]);
+             }
 
-            // Elevated Lid Hinge Arch (Pushed outward via hinge_offset)
-            translate([frame_w, frame_l * 0.3 + 0.2, 0]) {
-                difference() {
-                    union() {
-                        cube([hinge_offset, frame_l * 0.4 - 0.4, pivot_z]);
-                            translate([hinge_offset - hinge_r, 0, pivot_z])
-                            rotate([-90, 0, 0])
-                                cylinder(r = hinge_r, h = frame_l * 0.4 - 0.4);
+            difference() {
+                union() {
+                    // Elevated Lid Hinge Arch (Pushed outward via hinge_offset)
+                    translate([frame_w, frame_l * 0.3 + 0.2, 0]) {
+                        difference() {
+                            union() {
+                                cube([hinge_offset, frame_l * 0.4 - 0.4, pivot_z]);
+                                    translate([hinge_offset - hinge_r, 0, pivot_z])
+                                    rotate([-90, 0, 0])
+                                        cylinder(r = hinge_r, h = frame_l * 0.4 - 0.4);
+                            }
+                            // Inner arch cutout
+                            translate([hinge_offset - hinge_r, -0.1, pivot_z])
+                                rotate([-90, 0, 0])
+                                    cylinder(r = hinge_r - 1.0, h = (frame_l * 0.4) + 0.2);
+                       }
                     }
-                    // Inner arch cutout
-                    translate([hinge_offset - hinge_r, -0.1, pivot_z])
-                        rotate([-90, 0, 0])
-                            cylinder(r = hinge_r - 1.0, h = (frame_l * 0.4) + 0.2);
-                }
-            }
-            translate([frame_w - 1.5, frame_l * 0.3 + 0.2, lid_h]) {
-                difference() {
-                    union() {
-                        cube([1.5, frame_l * 0.4 - 0.4, 1.5]);
+                    translate([frame_w - 1.5, frame_l * 0.3 + 0.2, lid_h]) {
+                        difference() {
+                            union() {
+                                cube([1.5, frame_l * 0.4 - 0.4, 1.5]);
+                            }
+                            // Inner arch cutout
+                            translate([0, -0.1, 1.5])
+                                rotate([-90, 0, 0])
+                                    cylinder(r = 1.5, h = (frame_l * 0.4) + 0.2);
+                        
+                        }
                     }
-                    // Inner arch cutout
-                    translate([0, -0.1, 1.5])
-                        rotate([-90, 0, 0])
-                            cylinder(r = 1.5, h = (frame_l * 0.4) + 0.2);
                 }
+                translate([frame_w - 3, frame_l / 2, magnet_hole_z])
+                    rotate([0, 90, 0])
+                        cylinder(d = magnet_hole_dia + 0.2, h = hinge_r + 9);
             }
         }
     }
@@ -206,10 +251,9 @@ module palette_pair(c_count, c_size) {
 
 // Define all pairs of c_count and c_size for rendering
 pairs = [for (c_count = [2: 4], c_size = [30, 40]) [c_count, c_size]];
-// render all palette pairs
+// render all palette pairsy
 for (pair_count = [0 : len(pairs) - 2]) { // skip the last one
-    translate([pair_gap * pair_count, 0, 0]) {
+    translate([print_spacing * pair_count * 2, 0, 0]) {
         palette_pair(c_count = pairs[pair_count][0], c_size = pairs[pair_count][1]);
     }
 }
-
