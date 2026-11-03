@@ -33,7 +33,7 @@ magnet_hole_bottom = pivot_z - (hinge_r - 1.0 + magnet_hole_dia + magnet_hole_we
 magnet_hole_z = magnet_hole_bottom + magnet_hole_dia / 2;
 
 // Raised lid perimeter wall
-lid_wall_thickness = 1.0;
+lid_wall_thickness = 1;
 lid_wall_height = 2.5;
 
 // Base Frame Label Engraving
@@ -172,41 +172,42 @@ module palette_pair(c_count, c_size) {
     // -----------------------------------------------------------------
      
    translate([print_spacing + (print_spacing - frame_w)/2, 0, 0]) {
-        union() {
-            difference() {
-                // Main Solid Lid Frame
-                cube([frame_w, frame_l, lid_h]);
-                c_safe_size = c_size + 0.1;
-                // ceramic recess
-                translate([(frame_w - c_safe_size)/2, ((frame_l - (c_safe_size * c_count))/2), -0.1]) {
-                    cube([c_safe_size, c_safe_size * c_count, recess_depth + 0.1]);
+        difference() {
+            union() {
+                difference() {
+                    // Main Solid Lid Frame
+                    translate([-0.1, -0.1, 0]) {
+                        cube([frame_w + 0.2, frame_l + 0.2, lid_h]);
+                    }
+                    c_safe_size = c_size + 0.1;
+                    // ceramic recess
+                    translate([(frame_w - c_safe_size)/2, ((frame_l - (c_safe_size * c_count))/2), -0.1]) {
+                        cube([c_safe_size, c_safe_size * c_count, recess_depth + 0.1]);
 
 
-                    opening_size = [c_size - (2*recess_width), c_size - (2*recess_width), lid_h + 0.2];
-                    // Ceramic Openings 2
-                    opening_offset = (c_safe_size - opening_size[0])/2;
-                    for (i = [0 : c_count - 1]) {
-                        c_offset_y = opening_offset + (i * c_safe_size);
-                        
-                        translate([opening_offset, c_offset_y, 0])
-                            cube(opening_size);
+                        opening_size = [c_size - (2*recess_width), c_size - (2*recess_width), lid_h + 0.2];
+                        // Ceramic Openings 2
+                        opening_offset = (c_safe_size - opening_size[0])/2;
+                        for (i = [0 : c_count - 1]) {
+                            c_offset_y = opening_offset + (i * c_safe_size);
+                            
+                            translate([opening_offset, c_offset_y, 0])
+                                cube(opening_size);
+                        }
                     }
                 }
-            }
-            difference() {
-                // Lid wall
-                translate([-lid_wall_thickness, -lid_wall_thickness,0])
-                    cube([frame_w + 2 * lid_wall_thickness,
-                          frame_l + 2 * lid_wall_thickness,
-                          lid_wall_height]);
-                translate([0, 0, -1])
-                    cube([frame_w, frame_l, lid_wall_height + 2]);
-               
-                translate([lid_wall_thickness+frame_w-1, frame_l * 0.3 + 0.2,-0.2])
-                    cube([lid_wall_thickness+2, frame_l * 0.4 - 0.4, lid_wall_height + 0.4]);
-             }
+                
+                difference() {
+                    // Lid wall
+                    translate([-lid_wall_thickness, -lid_wall_thickness,0])
+                        cube([frame_w + 2 * lid_wall_thickness,
+                            frame_l + 2 * lid_wall_thickness,
+                            lid_wall_height]);
+                    translate([-0.1, -0.1, -1])
+                        cube([frame_w + 0.2, frame_l + 0.2, lid_wall_height + 2]);
+                }
 
-            difference() {
+                //hinge
                 union() {
                     // Elevated Lid Hinge Arch (Pushed outward via hinge_offset)
                     translate([frame_w, frame_l * 0.3 + 0.2, 0]) {
@@ -221,7 +222,7 @@ module palette_pair(c_count, c_size) {
                             translate([hinge_offset - hinge_r, -0.1, pivot_z])
                                 rotate([-90, 0, 0])
                                     cylinder(r = hinge_r - 1.0, h = (frame_l * 0.4) + 0.2);
-                       }
+                        }
                     }
                     translate([frame_w - 1.5, frame_l * 0.3 + 0.2, lid_h]) {
                         difference() {
@@ -236,10 +237,11 @@ module palette_pair(c_count, c_size) {
                         }
                     }
                 }
-                translate([frame_w - 3, frame_l / 2, magnet_hole_z])
-                    rotate([0, 90, 0])
-                        cylinder(d = magnet_hole_dia + 0.2, h = hinge_r + 9);
             }
+ 
+            translate([frame_w - 3, frame_l / 2, magnet_hole_z+0.1])
+                rotate([0, 90, 0])
+                    cylinder(d = magnet_hole_dia + 0.2, h = hinge_r + 9);
         }
     }
 }
@@ -252,7 +254,7 @@ module palette_pair(c_count, c_size) {
 // Define all pairs of c_count and c_size for rendering
 pairs = [for (c_count = [2: 4], c_size = [30, 40]) [c_count, c_size]];
 // render all palette pairsy
-for (pair_count = [0 : len(pairs) - 2]) { // skip the last one
+for (pair_count = [0 : len(pairs) -  2]) { // skip the last one
     translate([print_spacing * pair_count * 2, 0, 0]) {
         palette_pair(c_count = pairs[pair_count][0], c_size = pairs[pair_count][1]);
     }
